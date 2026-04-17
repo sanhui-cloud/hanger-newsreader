@@ -30,6 +30,7 @@ class FetchPipeline:
         sources: list[dict],
         extract_full_text: bool = True,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        on_rss_done: Optional[Callable] = None,
     ) -> dict:
         """
         Stage 1: Fetch RSS for all enabled sources in parallel.
@@ -76,6 +77,10 @@ class FetchPipeline:
                 # Trim old articles for this source
                 max_keep = int(self._repo.get_setting('max_articles_per_source', '100'))
                 self._repo.delete_old_articles(src['id'], max_keep)
+
+        # Notify GUI that RSS stage is done — articles can be displayed now
+        if on_rss_done:
+            on_rss_done()
 
         # Stage 3: Extract full text
         if extract_full_text and new_article_ids:

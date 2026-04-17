@@ -13,6 +13,12 @@ class _TaskResult:
     error: Optional[Exception]
 
 
+@dataclass
+class _StatusMsg:
+    message: str
+    callback: Callable[[str], None]
+
+
 class BackgroundTaskManager:
     """
     Wraps a ThreadPoolExecutor and bridges results back to the GUI thread
@@ -23,7 +29,7 @@ class BackgroundTaskManager:
     def __init__(self, gui_root, max_workers: int = 8):
         self._executor = ThreadPoolExecutor(max_workers=max_workers,
                                              thread_name_prefix='news-worker')
-        self._queue: queue.Queue[_TaskResult] = queue.Queue()
+        self._queue: queue.Queue[_TaskResult | _StatusMsg] = queue.Queue()
         self._root = gui_root
         self._poll()
 
@@ -45,16 +51,23 @@ class BackgroundTaskManager:
 
         self._executor.submit(_wrapper)
 
+    def post_status(self, message: str, callback: Callable[[str], None]) -> None:
+        """Post a status message from a worker thread to be delivered on the GUI thread."""
+        self._queue.put(_StatusMsg(message, callback))
+
     def _poll(self) -> None:
         try:
             while True:
-                item: _TaskResult = self._queue.get_nowait()
-                if item.error is not None:
-                    if item.on_error:
-                        item.on_error(item.error)
-                else:
-                    if item.on_done:
-                        item.on_done(item.result)
+                item = self._queue.get_nowait()
+                if isinstance(item, _StatusMsg):
+                    item.callback(item.message)
+                elif isinstance(item, _TaskResult):
+                    if item.error is not None:
+                        if item.on_error:
+                            item.on_error(item.error)
+                    else:
+                        if item.on_done:
+                            item.on_done(item.result)
         except queue.Empty:
             pass
         self._root.after(100, self._poll)

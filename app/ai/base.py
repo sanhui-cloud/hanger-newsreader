@@ -53,5 +53,20 @@ def get_provider(settings: dict) -> AIProvider:
             api_key=settings.get('openai_api_key', ''),
             model=settings.get('openai_model', 'gpt-4o-mini'),
         )
+    elif provider in ('siliconflow', 'deepseek', 'moonshot', 'zhipu'):
+        from app.ai.compat_provider import CompatProvider
+        return CompatProvider.from_preset(
+            preset_key=provider,
+            api_key=settings.get(f'{provider}_api_key', ''),
+            model_override=settings.get(f'{provider}_model', ''),
+        )
+    elif provider == 'custom':
+        from app.ai.compat_provider import CompatProvider
+        return CompatProvider(
+            api_key=settings.get('custom_api_key', ''),
+            base_url=settings.get('custom_base_url', ''),
+            model=settings.get('custom_model', ''),
+            display_name=settings.get('custom_name', 'Custom'),
+        )
     else:
         raise AIProviderError(f"Unknown AI provider: {provider}")

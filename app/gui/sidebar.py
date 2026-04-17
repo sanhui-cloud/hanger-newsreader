@@ -102,8 +102,8 @@ class Sidebar(ctk.CTkScrollableFrame):
             if collapsed:
                 frame.pack_forget()
             else:
-                frame.pack(fill='x', padx=4)
-            # Update arrow
+                # Re-insert the children frame immediately after its header
+                frame.pack(fill='x', padx=4, after=header)
             label = CATEGORY_LABELS.get(category, category.title())
             header.configure(text=f'{"▶" if collapsed else "▼"} {label}')
 

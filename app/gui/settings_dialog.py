@@ -40,92 +40,142 @@ class SettingsDialog(ctk.CTkToplevel):
         parent.columnconfigure(1, weight=1)
 
         self._provider_var = ctk.StringVar(
-            value=self._settings.get('ai_provider', 'claude').title()
+            value=self._settings.get('ai_provider', 'claude')
         )
-        r = 0
         ctk.CTkLabel(parent, text='Active Provider:', anchor='w').grid(
-            row=r, column=0, padx=8, pady=8, sticky='w')
-        ctk.CTkSegmentedButton(
-            parent, values=['Claude', 'OpenAI'], variable=self._provider_var,
-        ).grid(row=r, column=1, padx=8, pady=8, sticky='w')
+            row=0, column=0, padx=8, pady=8, sticky='w')
+        provider_menu = ctk.CTkSegmentedButton(
+            parent,
+            values=['claude', 'openai', 'siliconflow', 'deepseek', 'moonshot', 'zhipu', 'custom'],
+            variable=self._provider_var,
+            command=self._on_provider_changed,
+            font=ctk.CTkFont(size=11),
+        )
+        provider_menu.grid(row=0, column=1, padx=8, pady=8, sticky='w')
 
-        def _add_key_row(label, key, placeholder, row):
-            ctk.CTkLabel(parent, text=label, anchor='w').grid(
-                row=row, column=0, padx=8, pady=4, sticky='w')
+        # Scrollable area for provider-specific fields
+        self._ai_scroll = ctk.CTkScrollableFrame(parent, fg_color='transparent')
+        self._ai_scroll.grid(row=1, column=0, columnspan=2, sticky='nsew', padx=4)
+        self._ai_scroll.columnconfigure(1, weight=1)
+        parent.rowconfigure(1, weight=1)
+
+        self._ai_field_widgets: list = []
+        self._on_provider_changed(self._provider_var.get())
+
+    def _on_provider_changed(self, provider: str) -> None:
+        for w in self._ai_field_widgets:
+            w.destroy()
+        self._ai_field_widgets.clear()
+
+        from app.ai.compat_provider import COMPAT_PRESETS
+
+        def row(label, key, placeholder='', show='', row_idx=0):
+            lbl = ctk.CTkLabel(self._ai_scroll, text=label, anchor='w')
+            lbl.grid(row=row_idx, column=0, padx=8, pady=4, sticky='w')
             var = ctk.StringVar(value=self._settings.get(key, ''))
-            entry = ctk.CTkEntry(parent, textvariable=var, show='*',
-                                  placeholder_text=placeholder)
-            entry.grid(row=row, column=1, padx=8, pady=4, sticky='ew')
+            ent = ctk.CTkEntry(self._ai_scroll, textvariable=var,
+                               placeholder_text=placeholder,
+                               show=show if show else '')
+            ent.grid(row=row_idx, column=1, padx=8, pady=4, sticky='ew')
+            self._ai_field_widgets += [lbl, ent]
             return var
 
-        self._claude_key = _add_key_row('Claude API Key:', 'claude_api_key',
-                                         'sk-ant-...', 1)
-        self._claude_model_var = ctk.StringVar(
-            value=self._settings.get('claude_model', 'claude-haiku-4-5-20251001'))
-        ctk.CTkLabel(parent, text='Claude Model:', anchor='w').grid(
-            row=2, column=0, padx=8, pady=4, sticky='w')
-        ctk.CTkOptionMenu(
-            parent,
-            values=['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'],
-            variable=self._claude_model_var,
-        ).grid(row=2, column=1, padx=8, pady=4, sticky='w')
+        def model_row(label, key, placeholder, values, row_idx):
+            lbl = ctk.CTkLabel(self._ai_scroll, text=label, anchor='w')
+            lbl.grid(row=row_idx, column=0, padx=8, pady=4, sticky='w')
+            var = ctk.StringVar(value=self._settings.get(key, ''))
+            if values:
+                w = ctk.CTkOptionMenu(self._ai_scroll, values=values, variable=var)
+            else:
+                w = ctk.CTkEntry(self._ai_scroll, textvariable=var,
+                                 placeholder_text=placeholder)
+            w.grid(row=row_idx, column=1, padx=8, pady=4, sticky='w')
+            self._ai_field_widgets += [lbl, w]
+            return var
 
-        self._test_claude_lbl = ctk.CTkLabel(parent, text='', anchor='w',
-                                               text_color='gray')
-        self._test_claude_lbl.grid(row=3, column=1, padx=8, sticky='w')
-        ctk.CTkButton(
-            parent, text='Test Claude Connection', width=180,
-            command=self._test_claude,
-        ).grid(row=3, column=0, padx=8, pady=4)
+        def test_row(label, test_fn, row_idx):
+            lbl = ctk.CTkLabel(self._ai_scroll, text='', anchor='w', text_color='gray')
+            lbl.grid(row=row_idx, column=1, padx=8, sticky='w')
+            btn = ctk.CTkButton(self._ai_scroll, text=label, width=180,
+                                command=lambda: test_fn(lbl))
+            btn.grid(row=row_idx, column=0, padx=8, pady=4)
+            self._ai_field_widgets += [lbl, btn]
 
-        sep = ctk.CTkFrame(parent, height=1, fg_color='gray60')
-        sep.grid(row=4, column=0, columnspan=2, sticky='ew', padx=8, pady=8)
+        if provider == 'claude':
+            self._claude_key = row('API Key:', 'claude_api_key', 'sk-ant-...', '*', 0)
+            self._claude_model_var = model_row(
+                'Model:', 'claude_model', '',
+                ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'], 1)
+            test_row('Test Connection', self._test_claude, 2)
 
-        self._openai_key = _add_key_row('OpenAI API Key:', 'openai_api_key',
-                                          'sk-...', 5)
-        self._openai_model_var = ctk.StringVar(
-            value=self._settings.get('openai_model', 'gpt-4o-mini'))
-        ctk.CTkLabel(parent, text='OpenAI Model:', anchor='w').grid(
-            row=6, column=0, padx=8, pady=4, sticky='w')
-        ctk.CTkOptionMenu(
-            parent,
-            values=['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo'],
-            variable=self._openai_model_var,
-        ).grid(row=6, column=1, padx=8, pady=4, sticky='w')
+        elif provider == 'openai':
+            self._openai_key = row('API Key:', 'openai_api_key', 'sk-...', '*', 0)
+            self._openai_model_var = model_row(
+                'Model:', 'openai_model', '',
+                ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo'], 1)
+            test_row('Test Connection', self._test_openai, 2)
 
-        self._test_openai_lbl = ctk.CTkLabel(parent, text='', anchor='w',
-                                               text_color='gray')
-        self._test_openai_lbl.grid(row=7, column=1, padx=8, sticky='w')
-        ctk.CTkButton(
-            parent, text='Test OpenAI Connection', width=180,
-            command=self._test_openai,
-        ).grid(row=7, column=0, padx=8, pady=4)
+        elif provider in COMPAT_PRESETS:
+            _, default_model, display = COMPAT_PRESETS[provider]
+            self._compat_key = row('API Key:', f'{provider}_api_key', '', '*', 0)
+            self._compat_model_var = model_row(
+                'Model:', f'{provider}_model', f'default: {default_model}', [], 1)
+            test_row(f'Test {display}',
+                     lambda lbl, p=provider: self._test_compat(lbl, p), 2)
 
-    def _test_claude(self) -> None:
-        self._test_claude_lbl.configure(text='Testing...', text_color='gray')
+        elif provider == 'custom':
+            self._custom_key = row('API Key:', 'custom_api_key', '', '*', 0)
+            self._custom_url = row('Base URL:', 'custom_base_url',
+                                   'https://api.example.com/v1', '', 1)
+            self._custom_model_var = model_row('Model:', 'custom_model', 'model-name', [], 2)
+            self._custom_name_var = row('Provider Name:', 'custom_name', 'My Provider', '', 3)
+            test_row('Test Connection',
+                     lambda lbl: self._test_compat(lbl, 'custom'), 4)
+
+    def _test_claude(self, lbl: ctk.CTkLabel) -> None:
+        lbl.configure(text='Testing...', text_color='gray')
         try:
             from app.ai.claude_provider import ClaudeProvider
             p = ClaudeProvider(self._claude_key.get(), self._claude_model_var.get())
             ok, msg = p.test_connection()
-            self._test_claude_lbl.configure(
-                text=f'✓ {msg}' if ok else f'✗ {msg}',
-                text_color='#16a34a' if ok else '#dc2626',
-            )
+            lbl.configure(text=f'✓ {msg}' if ok else f'✗ {msg}',
+                          text_color='#16a34a' if ok else '#dc2626')
         except Exception as e:
-            self._test_claude_lbl.configure(text=f'✗ {e}', text_color='#dc2626')
+            lbl.configure(text=f'✗ {e}', text_color='#dc2626')
 
-    def _test_openai(self) -> None:
-        self._test_openai_lbl.configure(text='Testing...', text_color='gray')
+    def _test_openai(self, lbl: ctk.CTkLabel) -> None:
+        lbl.configure(text='Testing...', text_color='gray')
         try:
             from app.ai.openai_provider import OpenAIProvider
             p = OpenAIProvider(self._openai_key.get(), self._openai_model_var.get())
             ok, msg = p.test_connection()
-            self._test_openai_lbl.configure(
-                text=f'✓ {msg}' if ok else f'✗ {msg}',
-                text_color='#16a34a' if ok else '#dc2626',
-            )
+            lbl.configure(text=f'✓ {msg}' if ok else f'✗ {msg}',
+                          text_color='#16a34a' if ok else '#dc2626')
         except Exception as e:
-            self._test_openai_lbl.configure(text=f'✗ {e}', text_color='#dc2626')
+            lbl.configure(text=f'✗ {e}', text_color='#dc2626')
+
+    def _test_compat(self, lbl: ctk.CTkLabel, provider: str) -> None:
+        lbl.configure(text='Testing...', text_color='gray')
+        try:
+            from app.ai.compat_provider import CompatProvider, COMPAT_PRESETS
+            if provider in COMPAT_PRESETS:
+                p = CompatProvider.from_preset(
+                    provider,
+                    api_key=self._compat_key.get(),
+                    model_override=self._compat_model_var.get(),
+                )
+            else:
+                p = CompatProvider(
+                    api_key=self._custom_key.get(),
+                    base_url=self._custom_url.get(),
+                    model=self._custom_model_var.get(),
+                    display_name=self._custom_name_var.get(),
+                )
+            ok, msg = p.test_connection()
+            lbl.configure(text=f'✓ {msg}' if ok else f'✗ {msg}',
+                          text_color='#16a34a' if ok else '#dc2626')
+        except Exception as e:
+            lbl.configure(text=f'✗ {e}', text_color='#dc2626')
 
     # ── Sources tab ──────────────────────────────────────────────────────
 
@@ -247,13 +297,31 @@ class SettingsDialog(ctk.CTkToplevel):
     # ── Save ─────────────────────────────────────────────────────────────
 
     def _save(self) -> None:
-        new_settings = {
-            'ai_provider':            self._provider_var.get().lower(),
-            'claude_api_key':         self._claude_key.get(),
-            'openai_api_key':         self._openai_key.get(),
-            'claude_model':           self._claude_model_var.get(),
-            'openai_model':           self._openai_model_var.get(),
+        provider = self._provider_var.get()
+        from app.ai.compat_provider import COMPAT_PRESETS
+
+        new_settings: dict[str, str] = {'ai_provider': provider}
+
+        # Collect whichever key/model fields exist (vary by active provider tab)
+        field_map = {
+            'claude':      [('claude_api_key', '_claude_key'),
+                            ('claude_model',   '_claude_model_var')],
+            'openai':      [('openai_api_key', '_openai_key'),
+                            ('openai_model',   '_openai_model_var')],
+            'custom':      [('custom_api_key',  '_custom_key'),
+                            ('custom_base_url', '_custom_url'),
+                            ('custom_model',    '_custom_model_var'),
+                            ('custom_name',     '_custom_name_var')],
         }
+        for p in COMPAT_PRESETS:
+            field_map[p] = [(f'{p}_api_key', '_compat_key'),
+                            (f'{p}_model',   '_compat_model_var')]
+
+        for setting_key, attr in field_map.get(provider, []):
+            var = getattr(self, attr, None)
+            if var is not None:
+                new_settings[setting_key] = var.get()
+
         for key, var in self._pref_vars.items():
             val = var.get()
             if isinstance(val, bool):

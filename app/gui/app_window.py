@@ -137,11 +137,17 @@ class AppWindow(ctk.CTk):
 
     def _do_fetch(self, sources: list[dict], extract: bool) -> dict:
         def progress(msg, done, total):
-            pass  # Could post to a queue for status updates
+            self._task_mgr.post_status(
+                f'[{done}/{total}] {msg}',
+                self._set_status,
+            )
         return self._pipeline.run_full_fetch(
             sources=sources,
             extract_full_text=extract,
             progress_callback=progress,
+            on_rss_done=lambda: self._task_mgr.post_status(
+                '__RELOAD__', self._on_rss_stage_done
+            ),
         )
 
     def _on_fetch_done(self, result: dict) -> None:
@@ -154,8 +160,9 @@ class AppWindow(ctk.CTk):
         self._set_status(msg)
         self._load_articles()
 
-        if self._repo.get_setting('auto_analyze', '0') == '1':
-            pass  # future: batch AI analysis
+    def _on_rss_stage_done(self, _msg: str) -> None:
+        """Called as soon as RSS fetch is complete, before full-text extraction finishes."""
+        self._load_articles()
 
     def _on_fetch_error(self, error: Exception) -> None:
         self._toolbar.set_busy(False)
