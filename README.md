@@ -1,19 +1,19 @@
 # Global News Reader
 
-A desktop RSS/news reader for collecting international headlines, reading extracted full text, and producing AI-assisted article briefs and topic reports. Built with Python and CustomTkinter.
+A desktop RSS/news workbench for collecting international headlines, reading extracted article text, and producing AI-assisted article briefs and topic reports. Built with Python and CustomTkinter.
 
 ## Features
 
-- **Multi-source RSS reader**: includes Western, Chinese, Japanese, and Middle Eastern news sources out of the box.
-- **Full-text extraction**: fetches article body text with `trafilatura` and a BeautifulSoup fallback.
-- **AI article analysis**: per-article summary, keyword extraction, sentiment, and confidence score.
-- **AI output language**: choose English, Simplified Chinese, Japanese, Korean, or original-language output for reports and article briefs.
-- **Briefing queue**: batch-analyze the latest unprocessed articles in the current source/search scope.
-- **Topic reports**: configure keywords and generate persistent Markdown-style intelligence reports from matching articles.
-- **Source health panel**: review each source's last fetch time, newest article freshness, failures, stored article count, and missing full-text count.
-- **Cleanup rules**: automatically remove old non-favorite articles and cap cache size by age, source, and total count.
-- **Read workflow**: unread/saved/analyzed filters, saved articles, mark unread, Markdown export, and source filtering.
-- **Local storage**: articles, sources, settings, AI results, source health, and topic reports are stored in SQLite.
+- **Multi-source RSS reader**: includes Western, Chinese, Japanese, and Middle Eastern news feeds out of the box.
+- **Full-text extraction**: extracts article bodies with `trafilatura`; if extraction fails, the app tries a BeautifulSoup-based fallback.
+- **AI article analysis**: generates per-article summaries, keywords, sentiment labels, and confidence scores.
+- **AI output language**: supports English, Simplified Chinese, Japanese, Korean, or original-language output for article briefs and topic reports.
+- **Briefing queue**: batch-analyzes the newest unprocessed articles in the current source/search scope.
+- **Topic reports**: watches configured keywords and generates persistent Markdown-style reports from matching articles.
+- **Source health panel**: shows each feed's last fetch time, newest article freshness, failure state, stored article count, and missing full-text count.
+- **Cleanup rules**: removes old non-favorite articles and caps the local article cache by age, per-source count, and global count.
+- **Reading workflow**: unread/saved/analyzed filters, saved articles, mark unread, Markdown export, source filtering, and full-text reading.
+- **Local storage**: stores articles, sources, settings, AI results, source health, and topic reports in SQLite.
 - **Auto-refresh**: optional scheduled fetching every 15, 30, or 60 minutes.
 
 ## Built-In Sources
@@ -21,7 +21,7 @@ A desktop RSS/news reader for collecting international headlines, reading extrac
 | Region | Sources |
 |--------|---------|
 | Western | BBC World, Reuters, AP News, The Guardian, CNN World |
-| Chinese | 人民日报, 新华社 (EN), 澎湃新闻 |
+| Chinese | People's Daily, Xinhua English, The Paper |
 | Japanese | NHK World, Asahi Shimbun |
 | Middle East | Al Jazeera, Jerusalem Post |
 
@@ -40,6 +40,8 @@ First time:
 setup.bat
 ```
 
+This creates `venv/` and installs the required Python packages.
+
 Every time after that:
 
 ```bat
@@ -54,11 +56,13 @@ python main.py
 
 ## AI Setup
 
-Open **Settings > AI Providers**, enter an API key, and select a model. The app supports Claude, OpenAI, several OpenAI-compatible providers, and a custom compatible endpoint.
+Basic RSS reading works without an API key. AI features require a configured provider.
+
+Open **Settings > AI Providers**, enter an API key, and select a model. The app supports Claude, OpenAI, several OpenAI-compatible providers, and a custom OpenAI-compatible endpoint.
 
 In **Settings > Preferences**:
 
-- `AI Report Language`: controls article briefs and topic reports.
+- `AI Report Language`: controls the output language for article briefs and topic reports.
 - `Auto AI Analysis`: analyzes new articles after refresh.
 - `Topic Keywords`: comma, semicolon, or newline-separated keywords for topic reports.
 - `Auto Topic Reports`: generates reports after refresh when matching articles exist.
@@ -69,7 +73,7 @@ API keys are stored locally in the SQLite database and are only sent to the sele
 
 The **Source Health** tab shows:
 
-- fetch status: fresh, aging, stale, error, never fetched, or no articles
+- fetch status: Fresh, Aging, Stale, Error, Never fetched, or No articles
 - last fetch time and newest article time
 - newest article age in hours
 - number of stored articles
@@ -86,17 +90,17 @@ Health is based on the newest stored article or the newest article timestamp ret
 
 ## Cleanup Rules
 
-Cleanup keeps the local database from growing without bound. Favorites are preserved.
+Cleanup keeps the local database from growing without bound. Favorite articles are preserved.
 
 Settings:
 
-- `Cleanup Enabled`: master switch.
-- `Cleanup on Refresh`: run cleanup after a successful refresh.
+- `Cleanup Enabled`: master switch for automatic and manual cleanup.
+- `Cleanup on Refresh`: run cleanup after refresh.
 - `Max Article Age`: delete non-favorite articles older than this many days.
 - `Max Articles/Source`: keep only the newest N articles per source.
 - `Max Total Articles`: keep only the newest N articles globally.
 
-You can also run cleanup manually from **Source Health > Cleanup Now**.
+When both `Cleanup Enabled` and `Cleanup on Refresh` are on, the cleanup rules run after each refresh. You can also run the same rules manually from **Source Health > Cleanup Now**.
 
 ## Data Location
 
@@ -104,15 +108,15 @@ All runtime data is stored in `%APPDATA%\GlobalNewsReader\` on Windows:
 
 ```text
 %APPDATA%\GlobalNewsReader\
-├── news.db      # articles, sources, settings, AI analysis, reports, health data
-├── app.log      # local logs
-├── exports\     # exported article Markdown
-└── reports\     # exported topic report Markdown
++-- news.db      # articles, sources, settings, AI analysis, reports, health data
++-- app.log      # local logs
++-- exports\     # exported article Markdown
+`-- reports\     # exported topic report Markdown
 ```
 
 ## What Should Not Be Uploaded
 
-The repository should not include local runtime or private files:
+The repository should not include private, runtime, or generated files:
 
 - `venv/`
 - `.env`

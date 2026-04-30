@@ -88,10 +88,6 @@ class FetchPipeline:
                     last_entry_at=last_entry_at,
                 )
 
-                # Trim old articles for this source
-                max_keep = int(self._repo.get_setting('max_articles_per_source', '100'))
-                self._repo.delete_old_articles(src['id'], max_keep)
-
         # Notify GUI that RSS stage is done — articles can be displayed now
         if on_rss_done:
             on_rss_done()
