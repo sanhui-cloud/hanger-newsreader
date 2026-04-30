@@ -12,22 +12,55 @@ class Sidebar(ctk.CTkScrollableFrame):
         self._source_vars: dict[int, ctk.BooleanVar] = {}
         self._category_frames: dict[str, ctk.CTkFrame] = {}
         self._category_collapsed: dict[str, bool] = {}
+        self._category_counts: dict[str, tuple[int, int]] = {}
         self._on_add_source: Callable | None = None
 
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill='x', padx=8, pady=(10, 4))
+        header.columnconfigure(0, weight=1)
+
         ctk.CTkLabel(
-            self, text='News Sources', font=ctk.CTkFont(size=13, weight='bold'),
+            header, text='Sources', font=ctk.CTkFont(size=14, weight='bold'),
             anchor='w',
-        ).pack(fill='x', padx=8, pady=(8, 4))
+        ).grid(row=0, column=0, sticky='ew')
+
+        quick = ctk.CTkFrame(header, fg_color="transparent")
+        quick.grid(row=0, column=1, sticky='e')
+        ctk.CTkButton(
+            quick,
+            text='All',
+            width=34,
+            height=22,
+            fg_color='transparent',
+            border_width=1,
+            text_color=('gray25', 'gray75'),
+            hover_color=('gray84', 'gray26'),
+            font=ctk.CTkFont(size=10),
+            command=self.select_all,
+        ).pack(side='left', padx=(0, 3))
+        ctk.CTkButton(
+            quick,
+            text='None',
+            width=44,
+            height=22,
+            fg_color='transparent',
+            border_width=1,
+            text_color=('gray25', 'gray75'),
+            hover_color=('gray84', 'gray26'),
+            font=ctk.CTkFont(size=10),
+            command=self.select_none,
+        ).pack(side='left')
 
     def set_sources(self, sources: list[dict],
                     on_add_source: Callable | None = None) -> None:
         """Rebuild sidebar from sources list."""
         self._on_add_source = on_add_source
-        # Destroy old content (except header label)
+        # Destroy old content (except header row)
         for child in list(self.winfo_children())[1:]:
             child.destroy()
         self._source_vars.clear()
         self._category_frames.clear()
+        self._category_counts.clear()
 
         # Group by category
         categories: dict[str, list[dict]] = {}
@@ -56,11 +89,13 @@ class Sidebar(ctk.CTkScrollableFrame):
         label = CATEGORY_LABELS.get(category, category.title())
         colors = CATEGORY_COLORS.get(category, ('#6b7280', '#4b5563'))
         collapsed = self._category_collapsed.get(category, False)
+        enabled_count = sum(1 for src in sources if src.get('enabled', 1))
+        self._category_counts[category] = (enabled_count, len(sources))
 
         # Section header (toggle button)
         header = ctk.CTkButton(
             self,
-            text=f'{"▶" if collapsed else "▼"} {label}',
+            text=f'{"+" if collapsed else "-"} {label}  {enabled_count}/{len(sources)}',
             anchor='w',
             height=28,
             fg_color=colors,
@@ -81,10 +116,9 @@ class Sidebar(ctk.CTkScrollableFrame):
             var = ctk.BooleanVar(value=bool(src.get('enabled', 1)))
             self._source_vars[src['id']] = var
 
-            flag = self._flag_for_category(category)
             cb = ctk.CTkCheckBox(
                 children,
-                text=f"{flag} {src['name']}",
+                text=src['name'],
                 variable=var,
                 font=ctk.CTkFont(size=11),
                 command=self._emit_filter,
@@ -105,7 +139,8 @@ class Sidebar(ctk.CTkScrollableFrame):
                 # Re-insert the children frame immediately after its header
                 frame.pack(fill='x', padx=4, after=header)
             label = CATEGORY_LABELS.get(category, category.title())
-            header.configure(text=f'{"▶" if collapsed else "▼"} {label}')
+            enabled, total = self._category_counts.get(category, (0, 0))
+            header.configure(text=f'{"+" if collapsed else "-"} {label}  {enabled}/{total}')
 
     def _emit_filter(self) -> None:
         enabled_ids = [sid for sid, var in self._source_vars.items() if var.get()]
@@ -119,7 +154,7 @@ class Sidebar(ctk.CTkScrollableFrame):
             var.set(True)
         self._emit_filter()
 
-    @staticmethod
-    def _flag_for_category(category: str) -> str:
-        return {'western': '🌎', 'chinese': '🇨🇳', 'japanese': '🇯🇵',
-                'middleeast': '🌙', 'custom': '⭐'}.get(category, '•')
+    def select_none(self) -> None:
+        for sid, var in self._source_vars.items():
+            var.set(False)
+        self._emit_filter()

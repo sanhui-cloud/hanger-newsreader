@@ -23,8 +23,8 @@ class FeedFetcher:
                 'User-Agent': 'Mozilla/5.0 (compatible; GlobalNewsReader/1.0)',
                 'Accept': 'application/rss+xml, application/atom+xml, text/xml',
             })
-        except Exception:
-            return []
+        except Exception as e:
+            raise RuntimeError(f"Feed parse failed: {e}") from e
 
         entries = []
         for entry in feed.entries:
@@ -50,6 +50,10 @@ class FeedFetcher:
                 published_at=parse_feed_date(entry),
                 source_id=source['id'],
             ))
+
+        if not entries and getattr(feed, 'bozo', False):
+            err = getattr(feed, 'bozo_exception', 'unknown feed parse error')
+            raise RuntimeError(str(err))
 
         return entries
 

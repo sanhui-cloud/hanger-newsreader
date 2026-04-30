@@ -65,4 +65,12 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "extract_full_text":        "1",
     "auto_analyze":             "0",
     "max_articles_per_source":  "100",
+    "ai_report_language":       "English",
+    "topic_report_keywords":    "",
+    "topic_report_max_articles": "10",
+    "auto_topic_reports":       "0",
+    "cleanup_enabled":          "1",
+    "cleanup_on_refresh":       "1",
+    "max_article_age_days":     "90",
+    "max_total_articles":       "2000",
 }

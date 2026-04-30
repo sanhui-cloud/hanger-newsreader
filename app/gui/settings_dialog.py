@@ -253,7 +253,12 @@ class SettingsDialog(ctk.CTkToplevel):
     # ── Preferences tab ──────────────────────────────────────────────────
 
     def _build_prefs_tab(self, parent: ctk.CTkFrame) -> None:
-        parent.columnconfigure(1, weight=1)
+        parent.rowconfigure(0, weight=1)
+        parent.columnconfigure(0, weight=1)
+
+        form = ctk.CTkScrollableFrame(parent, fg_color='transparent')
+        form.grid(row=0, column=0, sticky='nsew')
+        form.columnconfigure(1, weight=1)
 
         rows = [
             ('Theme:', 'theme', 'optionmenu', ['dark', 'light', 'system']),
@@ -263,6 +268,19 @@ class SettingsDialog(ctk.CTkToplevel):
             ('Max Articles/Source:', 'max_articles_per_source', 'entry', None),
             ('Extract Full Text:', 'extract_full_text', 'checkbox', None),
             ('Auto AI Analysis:', 'auto_analyze', 'checkbox', None),
+            ('AI Report Language:', 'ai_report_language', 'optionmenu',
+             ['English', '简体中文', '日本語', '한국어', 'Original language']),
+            ('Topic Keywords:', 'topic_report_keywords', 'entry_wide', None,
+             'Comma/semicolon separated, e.g. AI chips; Middle East'),
+            ('Report Articles:', 'topic_report_max_articles', 'optionmenu',
+             ['5', '10', '15', '20']),
+            ('Auto Topic Reports:', 'auto_topic_reports', 'checkbox', None),
+            ('Cleanup Enabled:', 'cleanup_enabled', 'checkbox', None),
+            ('Cleanup on Refresh:', 'cleanup_on_refresh', 'checkbox', None),
+            ('Max Article Age:', 'max_article_age_days', 'optionmenu',
+             ['30', '60', '90', '180', '365'], 'days; favorites are kept'),
+            ('Max Total Articles:', 'max_total_articles', 'optionmenu',
+             ['500', '1000', '2000', '5000', '10000']),
         ]
 
         self._pref_vars: dict[str, ctk.Variable] = {}
@@ -272,24 +290,32 @@ class SettingsDialog(ctk.CTkToplevel):
             widget_type = row_def[2]
             current = self._settings.get(key, '')
 
-            ctk.CTkLabel(parent, text=label, anchor='w').grid(
+            ctk.CTkLabel(form, text=label, anchor='w').grid(
                 row=i, column=0, padx=8, pady=6, sticky='w')
 
             if widget_type == 'optionmenu':
                 values = row_def[3]
                 var = ctk.StringVar(value=current)
-                ctk.CTkOptionMenu(parent, values=values, variable=var, width=120).grid(
+                ctk.CTkOptionMenu(form, values=values, variable=var, width=120).grid(
                     row=i, column=1, padx=8, pady=6, sticky='w')
                 if len(row_def) > 4:
-                    ctk.CTkLabel(parent, text=row_def[4], text_color='gray').grid(
+                    ctk.CTkLabel(form, text=row_def[4], text_color='gray').grid(
                         row=i, column=2, padx=4, sticky='w')
             elif widget_type == 'entry':
                 var = ctk.StringVar(value=current)
-                ctk.CTkEntry(parent, textvariable=var, width=80).grid(
+                ctk.CTkEntry(form, textvariable=var, width=80).grid(
                     row=i, column=1, padx=8, pady=6, sticky='w')
+            elif widget_type == 'entry_wide':
+                var = ctk.StringVar(value=current)
+                ctk.CTkEntry(form, textvariable=var, width=330).grid(
+                    row=i, column=1, padx=8, pady=6, sticky='ew')
+                if len(row_def) > 4:
+                    ctk.CTkLabel(form, text=row_def[4], text_color='gray',
+                                 font=ctk.CTkFont(size=10)).grid(
+                        row=i, column=2, padx=4, sticky='w')
             elif widget_type == 'checkbox':
                 var = ctk.BooleanVar(value=current == '1')
-                ctk.CTkCheckBox(parent, text='', variable=var).grid(
+                ctk.CTkCheckBox(form, text='', variable=var).grid(
                     row=i, column=1, padx=8, pady=6, sticky='w')
 
             self._pref_vars[key] = var

@@ -15,6 +15,14 @@ class AnalysisResult:
     raw_response: str = field(repr=False, default='')
 
 
+@dataclass
+class TopicReportResult:
+    report: str
+    provider: str
+    model: str
+    generated_at: str
+
+
 class AIProviderError(Exception):
     pass
 
@@ -22,8 +30,19 @@ class AIProviderError(Exception):
 class AIProvider(ABC):
     @abstractmethod
     def analyze_article(self, title: str, text: str,
-                        language: str = 'en') -> AnalysisResult:
+                        language: str = 'en',
+                        output_language: str = 'English') -> AnalysisResult:
         """Raises AIProviderError on failure."""
+
+    @abstractmethod
+    def generate_topic_report(
+        self,
+        title: str,
+        keywords: list[str],
+        articles: list[dict],
+        output_language: str = 'English',
+    ) -> TopicReportResult:
+        """Generate a multi-article Markdown report."""
 
     @abstractmethod
     def test_connection(self) -> tuple[bool, str]:

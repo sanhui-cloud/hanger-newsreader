@@ -2,8 +2,8 @@ import json
 import re
 from datetime import datetime, timezone
 
-from app.ai.base import AIProvider, AIProviderError, AnalysisResult
-from app.ai.prompt_builder import build_analysis_prompt
+from app.ai.base import AIProvider, AIProviderError, AnalysisResult, TopicReportResult
+from app.ai.prompt_builder import build_analysis_prompt, build_topic_report_prompt
 from app.ai.claude_provider import _extract_json
 
 
@@ -27,8 +27,9 @@ class OpenAIProvider(AIProvider):
         return self._model
 
     def analyze_article(self, title: str, text: str,
-                        language: str = 'en') -> AnalysisResult:
-        prompt = build_analysis_prompt(title, text, language)
+                        language: str = 'en',
+                        output_language: str = 'English') -> AnalysisResult:
+        prompt = build_analysis_prompt(title, text, language, output_language)
         try:
             response = self._client.chat.completions.create(
                 model=self._model,
@@ -54,6 +55,35 @@ class OpenAIProvider(AIProvider):
             model=self._model,
             analyzed_at=datetime.now(timezone.utc).isoformat(),
             raw_response=raw,
+        )
+
+    def generate_topic_report(
+        self,
+        title: str,
+        keywords: list[str],
+        articles: list[dict],
+        output_language: str = 'English',
+    ) -> TopicReportResult:
+        prompt = build_topic_report_prompt(title, keywords, articles, output_language)
+        try:
+            response = self._client.chat.completions.create(
+                model=self._model,
+                max_tokens=1800,
+                messages=[
+                    {"role": "system",
+                     "content": "You are a careful news intelligence analyst. Write concise Markdown reports."},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            raw = response.choices[0].message.content or ''
+        except Exception as e:
+            raise AIProviderError(f"OpenAI API error: {e}") from e
+
+        return TopicReportResult(
+            report=raw.strip(),
+            provider='openai',
+            model=self._model,
+            generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
     def test_connection(self) -> tuple[bool, str]:

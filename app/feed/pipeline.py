@@ -61,8 +61,12 @@ class FetchPipeline:
                     entries = future.result()
                 except Exception as e:
                     errors.append(f"{src['name']}: {e}")
+                    self._repo.update_source_fetch_result(
+                        src['id'], success=False, error=str(e)
+                    )
                     continue
 
+                new_for_source = 0
                 for entry in entries:
                     article_id = self._repo.insert_article(
                         source_id=entry.source_id,
@@ -73,6 +77,16 @@ class FetchPipeline:
                     )
                     if article_id is not None:
                         new_article_ids.append((article_id, entry.url))
+                        new_for_source += 1
+
+                last_entry_at = self._newest_entry_date(entries)
+                self._repo.update_source_fetch_result(
+                    src['id'],
+                    success=True,
+                    new_count=new_for_source,
+                    entry_count=len(entries),
+                    last_entry_at=last_entry_at,
+                )
 
                 # Trim old articles for this source
                 max_keep = int(self._repo.get_setting('max_articles_per_source', '100'))
@@ -104,8 +118,24 @@ class FetchPipeline:
                         _report(f"Extracting full text ({done}/{total_extract})...",
                                 total_sources)
 
+        cleanup_result = {}
+        if self._repo.get_setting('cleanup_enabled', '1') == '1' and \
+           self._repo.get_setting('cleanup_on_refresh', '1') == '1':
+            cleanup_result = self.run_cleanup()
+
         _report("Done", total_sources)
-        return {'new_articles': len(new_article_ids), 'errors': errors}
+        return {
+            'new_articles': len(new_article_ids),
+            'errors': errors,
+            'cleanup': cleanup_result,
+        }
+
+    def run_cleanup(self) -> dict:
+        return self._repo.cleanup_articles(
+            max_age_days=self._int_setting('max_article_age_days', 90),
+            max_total_articles=self._int_setting('max_total_articles', 2000),
+            max_articles_per_source=self._int_setting('max_articles_per_source', 100),
+        )
 
     def extract_article_text(self, article_id: int, url: str) -> bool:
         """Extract and store full text for one article. Returns True if successful."""
@@ -143,3 +173,14 @@ class FetchPipeline:
                     errors.append(f"{a['url'][:60]}: {e}")
 
         return {'extracted': total, 'errors': errors}
+
+    @staticmethod
+    def _newest_entry_date(entries) -> Optional[str]:
+        dates = [entry.published_at for entry in entries if entry.published_at]
+        return max(dates) if dates else None
+
+    def _int_setting(self, key: str, default: int) -> int:
+        try:
+            return int(self._repo.get_setting(key, str(default)))
+        except ValueError:
+            return default
