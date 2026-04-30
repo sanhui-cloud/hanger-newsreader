@@ -122,6 +122,7 @@ The repository should not include local runtime or private files:
 - logs: `*.log`
 - generated exports: `exports/`, `reports/`
 - local validation screenshots: `assets/ui_*.png`
+- internal or scratch notes: `docs/`
 - IDE folders: `.idea/`, `.vscode/`
 
 These are covered by `.gitignore`.
